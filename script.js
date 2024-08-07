@@ -1,4 +1,4 @@
-const modelUrl = 'https://chokokadaikenkyu2024.github.io/cloud-classifier/model/model.json'; // GitHub PagesのURL
+const modelUrl = 'https://chokocloudtest.netlify.app/model/model.json'; // GitHub PagesのURL
 let model;
 
 const classNames = ["Ac", "As", "Cb", "Cc", "Ci", "Cs", "Cu", "Ns", "Sc", "St"];
