@@ -36,10 +36,15 @@ async function classifyImage() {
       }
       ctx.putImageData(imageData, 0, 0);
 
-      const tensor = tf.browser.fromPixels(canvas).resizeBilinear([50, 50]).expandDims().toFloat().div(tf.scalar(255.0));
+      const tensor = tf.browser.fromPixels(canvas)
+        .resizeBilinear([50, 50])
+        .expandDims()
+        .toFloat()
+        .div(tf.scalar(255.0));
 
       // 予測を実行
       const predictions = model.predict(tensor).dataSync();
+      console.log(predictions); // デバッグ用
 
       // クラスラベルの決定
       const classLabels = ['Ac', 'As', 'Cb', 'Cc', 'Ci', 'Cs', 'Cu', 'Ns', 'Sc', 'St'];
