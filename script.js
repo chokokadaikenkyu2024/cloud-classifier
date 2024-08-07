@@ -1,10 +1,15 @@
-const modelUrl = 'https://chokokadaikenkyu2024.github.io/cloud-classifier//model/model.json'; // GitHub PagesのURL
+const modelUrl = 'https://chokokadaikenkyu2024.github.io/cloud-classifier/model/model.json'; // GitHub PagesのURL
 let model;
 
 const classNames = ["Ac", "As", "Cb", "Cc", "Ci", "Cs", "Cu", "Ns", "Sc", "St"];
 
 async function loadModel() {
-  model = await tf.loadGraphModel(modelUrl);
+  try {
+    model = await tf.loadLayersModel(modelUrl);
+    console.log('Model loaded successfully');
+  } catch (error) {
+    console.error('Error loading model:', error);
+  }
 }
 
 function processImage(image) {
@@ -30,6 +35,8 @@ function processImage(image) {
     const maxIndex = prediction.indexOf(Math.max(...prediction));
     const result = classNames[maxIndex];
     document.getElementById('result').textContent = `Predicted class: ${result}`;
+  }).catch(error => {
+    console.error('Error making prediction:', error);
   });
 }
 
