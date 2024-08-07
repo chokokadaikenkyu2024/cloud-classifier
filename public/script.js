@@ -1,59 +1,42 @@
+const modelUrl = 'https://github.com/chokokadaikenkyu2024/cloud-classifier//model/model.json'; // GitHub上のモデルURL
 let model;
 
-window.onload = async () => {
-  // モデルのロード
-  model = await tf.loadLayersModel('/model/model.json');
-  document.getElementById('classifyButton').addEventListener('click', classifyImage);
-};
+const classNames = ["Ac", "As", "Cb", "Cc", "Ci", "Cs", "Cu", "Ns", "Sc", "St"];
 
-async function classifyImage() {
-  const imageUpload = document.getElementById('imageUpload').files[0];
-  if (!imageUpload) {
-    alert('画像をアップロードしてください。');
-    return;
-  }
-
-  // 画像を読み込み、グレースケールに変換してテンソルに変換
-  const reader = new FileReader();
-  reader.onload = async () => {
-    const img = new Image();
-    img.src = reader.result;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0, img.width, img.height);
-
-      // グレースケール変換
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-        data[i] = avg;     // Red
-        data[i + 1] = avg; // Green
-        data[i + 2] = avg; // Blue
-      }
-      ctx.putImageData(imageData, 0, 0);
-
-      const tensor = tf.browser.fromPixels(canvas)
-        .resizeBilinear([50, 50])
-        .expandDims()
-        .toFloat()
-        .div(tf.scalar(255.0));
-
-      // 予測を実行
-      const predictions = model.predict(tensor).dataSync();
-      console.log(predictions); // デバッグ用
-
-      // クラスラベルの決定
-      const classLabels = ['Ac', 'As', 'Cb', 'Cc', 'Ci', 'Cs', 'Cu', 'Ns', 'Sc', 'St'];
-      const maxIndex = predictions.indexOf(Math.max(...predictions));
-      const label = classLabels[maxIndex];
-
-      // 結果を表示
-      document.getElementById('result').innerText = `この雲は: ${label} です。`;
-    };
-  };
-  reader.readAsDataURL(imageUpload);
+async function loadModel() {
+  model = await tf.loadGraphModel(modelUrl);
 }
+
+function processImage(image) {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.drawImage(image, 0, 0);
+  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  
+  // グレースケール変換
+  for (let i = 0; i < imgData.data.length; i += 4) {
+    const avg = (imgData.data[i] + imgData.data[i + 1] + imgData.data[i + 2]) / 3;
+    imgData.data[i] = imgData.data[i + 1] = imgData.data[i + 2] = avg;
+  }
+  ctx.putImageData(imgData, 0, 0);
+  
+  const tensor = tf.browser.fromPixels(canvas).toFloat().div(tf.scalar(255)).expandDims();
+  
+  model.predict(tensor).array().then(predictions => {
+    const prediction = predictions[0];
+    const maxIndex = prediction.indexOf(Math.max(...prediction));
+    const result = classNames[maxIndex];
+    document.getElementById('result').textContent = `Predicted class: ${result}`;
+  });
+}
+
+document.getElementById('upload').addEventListener('change', event => {
+  const file = event.target.files[0];
+  const image = new Image();
+  image.onload = () => processImage(image);
+  image.src = URL.createObjectURL(file);
+});
+
+loadModel();
