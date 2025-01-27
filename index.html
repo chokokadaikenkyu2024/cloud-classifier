@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <title>定点カメラ</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            color: #fff;
+            background-color: #000;
+        }
+        #video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+        }
+        #count {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            font-size: 18px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 8px;
+        }
+        #timer {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 18px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 8px;
+        }
+        #result {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 18px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 8px;
+            max-width: calc(100% - 40px);
+        }
+        #message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px 30px;
+            border-radius: 12px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas" width="1600" height="1200" style="display:none;"></canvas>
+    <div id="result">結果: </div>
+    <div id="count">撮影回数: 0</div>
+    <div id="timer">次の撮影まで: 60秒</div>
+    <div id="message">撮影完了！</div>
+
+    <script>
+        let captureCount = 0;
+        const captureInterval = 60000;
+        let countdown = captureInterval / 1000;
+        const constraints = {
+            audio: false,
+            video: {
+                width: { ideal: 1600 },
+                height: { ideal: 1200 },
+                facingMode: "environment",
+                advanced: [{
+                    focusMode: "manual"
+                }]
+            }
+        };
+
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(function(strm) {
+                    document.getElementById('video').srcObject = strm;
+                })
+                .catch(function(err) {
+                    console.log("エラー: " + err);
+                });
+        }
+
+        function captureAndSend() {
+            var canvas = document.getElementById('canvas');
+            var context = canvas.getContext('2d');
+            var video = document.getElementById('video');
+            var resultDiv = document.getElementById('result');
+            var countDiv = document.getElementById('count');
+            var messageDiv = document.getElementById('message');
+
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(function(blob) {
+                var formData = new FormData();
+                formData.append('image', blob, 'photo.jpg');
+                fetch('/save_image', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(result => {
+                    resultDiv.textContent = '結果: ' + result.message;
+                    captureCount++;
+                    countDiv.textContent = `撮影回数: ${captureCount}`;
+
+                    messageDiv.style.display = 'block';
+                    setTimeout(() => {
+                        messageDiv.style.display = 'none';
+                    }, 3000);
+
+                    countdown = captureInterval / 1000;
+                })
+                .catch(err => {
+                    console.log("エラー: " + err);
+                    resultDiv.textContent = '画像の送信に失敗しました。';
+                });
+            }, 'image/jpeg');
+        }
+
+        function updateTimer() {
+            const timerDiv = document.getElementById('timer');
+            countdown--;
+
+            if (countdown <= 0) {
+                countdown = captureInterval / 1000;
+                captureAndSend();
+            }
+
+            timerDiv.textContent = `次の撮影まで: ${countdown}秒`;
+        }
+
+        function startCapturing() {
+            captureAndSend();
+            setInterval(updateTimer, 1000);
+        }
+
+        window.onload = function() {
+            startCamera();
+            setTimeout(startCapturing, 100);
+        };
+    </script>
+</body>
+</html>
